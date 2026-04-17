@@ -102,6 +102,7 @@ export default function Standings() {
   useEffect(() => { loadStandings() }, [season, division])
 
   const maxWins = Math.max(1, ...standings.map(s => s.wins))
+  const divisions = [...new Set(allTeams.map(t => t.division).filter(Boolean))].sort()
 
   return (
     <div>
@@ -120,6 +121,11 @@ export default function Standings() {
           <button key={s} className={`filter-btn ${season === s ? 'active' : ''}`} onClick={() => setSeason(s)}>{s}</button>
         ))}
         {seasons.length === 0 && <span style={{ fontSize: 12, color: 'var(--text-dim)' }}>No seasons recorded yet</span>}
+        <span style={{ fontSize: 12, color: 'var(--text-muted)', fontWeight: 600, marginLeft: 12 }}>Division:</span>
+        <select className="select" value={division} onChange={(e) => setDivision(e.target.value)} style={{ width: 180, height: 36 }}>
+          <option value="">All divisions</option>
+          {divisions.map(d => <option key={d} value={d}>{d}</option>)}
+        </select>
       </div>
 
       <div className="card">

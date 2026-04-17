@@ -240,7 +240,7 @@ router.delete('/:id', authenticate, requireRole('admin', 'coach'), (req, res) =>
 
 // ─── POST /api/matches/:id/lineup ─────────────────────────────────────────────
 // Bulk upsert: body = { lineup: [{ player_id, role, position, notes }, ...] }
-router.post('/:id/lineup', authenticate, requireRole('admin', 'coach', 'assistant_coach'), (req, res) => {
+router.post('/:id/lineup', authenticate, requireRole('coach', 'assistant_coach'), (req, res) => {
   const match = db.prepare(`SELECT * FROM matches WHERE id = ?`).get(req.params.id);
   if (!match) return res.status(404).json({ error: 'Match not found' });
 

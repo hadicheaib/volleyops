@@ -328,7 +328,7 @@ function LineupPanel({ match, canManage, onLineupSaved }) {
 
 // ─── Main component ───────────────────────────────────────────────────────────
 export default function Schedule() {
-  const { canManage, isAdmin } = useAuth()
+  const { canManageFixtures, canManageLineups } = useAuth()
   const toast = useToast()
   const [matches,  setMatches]  = useState([])
   const [teams,    setTeams]    = useState([])
@@ -354,10 +354,10 @@ export default function Schedule() {
   useEffect(() => { load() }, [load])
 
   useEffect(() => {
-    if (canManage) {
+    if (canManageFixtures) {
       api.get('/teams').then(({ data }) => setTeams(data.teams || [])).catch(() => {})
     }
-  }, [canManage])
+  }, [canManageFixtures])
 
   const filteredMatches = matches.filter(m => {
     if (tab === 'upcoming') return m.status === 'scheduled'
@@ -372,7 +372,7 @@ export default function Schedule() {
           <div className="page-title">Match Schedule</div>
           <div className="page-subtitle">{matches.length} match{matches.length !== 1 ? 'es' : ''} · manage fixtures and team lineups</div>
         </div>
-        {canManage && (
+        {canManageFixtures && (
           <button className="btn btn-primary" onClick={() => setShowCreate(true)}>+ Schedule Match</button>
         )}
       </div>
@@ -479,7 +479,7 @@ export default function Schedule() {
                       <div style={{ fontSize: 10, color: 'var(--text-muted)', fontWeight: 700 }}>SETS</div>
                     </div>
                   )}
-                  {canManage && selected.status === 'scheduled' && (
+                  {canManageFixtures && selected.status === 'scheduled' && (
                     <button className="btn btn-secondary btn-sm" onClick={() => setShowResult(selected)}>
                       Record Result
                     </button>
@@ -492,7 +492,7 @@ export default function Schedule() {
                 <LineupPanel
                   key={selected.id}
                   match={selected}
-                  canManage={canManage}
+                  canManage={canManageLineups}
                   onLineupSaved={load}
                 />
               </div>

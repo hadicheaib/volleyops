@@ -96,6 +96,24 @@ db.exec(`
     updated_at          TEXT    NOT NULL DEFAULT (datetime('now'))
   );
 
+  -- Wallet ledger: tracks deposit requests and wallet-funded payments
+  CREATE TABLE IF NOT EXISTS wallet_transactions (
+    id           INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id      INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    player_id    INTEGER REFERENCES players(id) ON DELETE SET NULL,
+    payment_id   INTEGER REFERENCES payments(id) ON DELETE SET NULL,
+    plan_id      INTEGER REFERENCES payment_plans(id) ON DELETE SET NULL,
+    type         TEXT    NOT NULL CHECK(type IN ('deposit','payment','adjustment')),
+    status       TEXT    NOT NULL DEFAULT 'pending'
+                         CHECK(status IN ('pending','approved','rejected','applied')),
+    amount       REAL    NOT NULL,
+    note         TEXT,
+    reviewed_by  INTEGER REFERENCES users(id) ON DELETE SET NULL,
+    reviewed_at  TEXT,
+    created_at   TEXT    NOT NULL DEFAULT (datetime('now')),
+    updated_at   TEXT    NOT NULL DEFAULT (datetime('now'))
+  );
+
   -- ─── CONVERSATIONS ────────────────────────────────────────────────────────────
   CREATE TABLE IF NOT EXISTS conversations (
     id          INTEGER PRIMARY KEY AUTOINCREMENT,
