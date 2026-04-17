@@ -1,0 +1,23 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(pkill -f \"node server.js\")",
+      "Bash(pkill -f \"vite.js\")",
+      "Bash(\"/c/Program Files/nodejs/node\" seed.js)",
+      "Bash(\"/c/Program Files/nodejs/node\" -e \"const d=[];process.stdin.on\\('data',c=>d.push\\(c\\)\\);process.stdin.on\\('end',\\(\\)=>{const r=JSON.parse\\(Buffer.concat\\(d\\).toString\\(\\)\\);console.log\\('total:',r.total,'| pending:',r.players.filter\\(p=>p.registration_status==='pending'\\).length,'| approved:',r.players.filter\\(p=>p.registration_status==='approved'\\).length\\)}\\)\")",
+      "Bash(curl -s -X POST http://localhost:3001/api/auth/login -H 'Content-Type: application/json' -d '{\"email\":\"hadi.cheaib@volleyops.com\",\"password\":\"Player123!\"}')",
+      "Bash(\"/c/Program Files/nodejs/node\" -e \"const d=[];process.stdin.on\\('data',c=>d.push\\(c\\)\\);process.stdin.on\\('end',\\(\\)=>{const r=JSON.parse\\(Buffer.concat\\(d\\).toString\\(\\)\\);r.notifications.forEach\\(n=>console.log\\(' ['+\\( n.is_read?'read':'UNREAD'\\)+']',n.title\\)\\)}\\)\")",
+      "Bash(curl -s \"http://localhost:3001/api/standings?season=2024-2025\")",
+      "Bash(\"/c/Program Files/nodejs/node\" -e \"const d=[];process.stdin.on\\('data',c=>d.push\\(c\\)\\);process.stdin.on\\('end',\\(\\)=>{const r=JSON.parse\\(Buffer.concat\\(d\\).toString\\(\\)\\);r.standings.forEach\\(s=>console.log\\('  #'+s.rank,s.team_name,s.division,'| P:'+s.played,'W:'+s.wins,'L:'+s.losses,'Sets:'+s.sets_won+'-'+s.sets_lost,'PTS:'+s.points\\)\\)}\\)\")",
+      "Bash(\"/c/Program Files/nodejs/node\" node_modules/vite/bin/vite.js build)",
+      "Bash(\"/c/Program Files/nodejs/node\" -e \"const d=[];process.stdin.on\\('data',c=>d.push\\(c\\)\\);process.stdin.on\\('end',\\(\\)=>{const r=JSON.parse\\(Buffer.concat\\(d\\).toString\\(\\)\\);r.matches.forEach\\(m=>console.log\\(' ',m.team_name,'vs',m.opponent,'| lineup:',m.lineup_count+'/'+m.roster_size\\)\\)}\\)\")",
+      "Bash(node seed.js)",
+      "Bash(ls -la /c/Users/hadi/Desktop/430sprnt1/backend/*.db)",
+      "Bash(taskkill /F /IM node.exe)",
+      "Bash(cmd /c \"taskkill /F /IM node.exe\")",
+      "Bash(cmd /c \"taskkill /F /IM node.exe 2>&1\")",
+      "Bash(node -e \"const {execSync} = require\\('child_process'\\); try { execSync\\('taskkill /F /IM node.exe', {stdio:'pipe'}\\); } catch\\(e\\) {} require\\('fs'\\).unlinkSync\\('volleyops.db'\\); console.log\\('deleted'\\);\")",
+      "Bash(node -e \"require\\('fs'\\).unlinkSync\\('volleyops.db'\\); console.log\\('deleted'\\);\")"
+    ]
+  }
+}

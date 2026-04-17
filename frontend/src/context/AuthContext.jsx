@@ -1,0 +1,74 @@
+import { createContext, useContext, useState, useEffect } from 'react'
+import api from '../api/client'
+
+const AuthContext = createContext(null)
+
+export function AuthProvider({ children }) {
+  const [user, setUser]       = useState(null)
+  const [loading, setLoading] = useState(true)
+
+  // Restore session from localStorage
+  useEffect(() => {
+    const token = localStorage.getItem('accessToken')
+    if (token) {
+      api.get('/auth/me')
+        .then(({ data }) => setUser(data))
+        .catch(() => { localStorage.clear(); setUser(null) })
+        .finally(() => setLoading(false))
+    } else {
+      setLoading(false)
+    }
+  }, [])
+
+  async function login(email, password) {
+    const { data } = await api.post('/auth/login', { email, password })
+    localStorage.setItem('accessToken',  data.accessToken)
+    localStorage.setItem('refreshToken', data.refreshToken)
+    // Fetch full profile so player_status is included
+    const { data: me } = await api.get('/auth/me')
+    setUser(me)
+    return me
+  }
+
+  // Called right after player self-registration to set state without a round-trip
+  function setUserFromTokens(userData) {
+    setUser(userData)
+  }
+
+  async function logout() {
+    const refreshToken = localStorage.getItem('refreshToken')
+    try { await api.post('/auth/logout', { refreshToken }) } catch {}
+    localStorage.clear()
+    setUser(null)
+  }
+
+  const isAdmin        = user?.role === 'admin'
+  const isCoach        = user?.role === 'coach'
+  const isAssistant    = user?.role === 'assistant_coach'
+  const canManage      = isAdmin || isCoach
+  // Only coaches can add/remove players from team rosters; admins are view-only for rosters
+  const canManageRoster = isCoach
+  const isPlayer       = user?.role === 'player'
+  const playerStatus   = user?.player_status ?? null   // 'pending' | 'approved' | 'rejected' | 'waitlisted' | null
+  // Players need registration_status=approved; coaches/asst_coaches need is_active=1; admins always pass
+  const isApproved     = isPlayer
+    ? playerStatus === 'approved'
+    : (isCoach || isAssistant)
+      ? user?.is_active === 1
+      : true
+
+  return (
+    <AuthContext.Provider value={{
+      user, loading,
+      login, logout, setUserFromTokens,
+      isAdmin, isCoach, isAssistant, canManage, canManageRoster,
+      isPlayer, playerStatus, isApproved,
+    }}>
+      {children}
+    </AuthContext.Provider>
+  )
+}
+
+export function useAuth() {
+  return useContext(AuthContext)
+}
