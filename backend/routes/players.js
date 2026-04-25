@@ -225,7 +225,7 @@ router.get('/:id', authenticate, (req, res) => {
 });
 
 // ─── PUT /api/players/:id ─────────────────────────────────────────────────────
-router.put('/:id', authenticate, requireRole('admin', 'coach'), [
+router.put('/:id', authenticate, [
   body('name').optional().trim().notEmpty(),
   body('email').optional().isEmail().normalizeEmail(),
   body('phone').optional().trim(),
@@ -243,9 +243,20 @@ router.put('/:id', authenticate, requireRole('admin', 'coach'), [
   const existing = db.prepare(`SELECT * FROM players WHERE id = ?`).get(id);
   if (!existing) return res.status(404).json({ error: 'Player not found' });
 
-  const fields = ['name','email','phone','date_of_birth','position','jersey_number','notes','season'];
+  const isAdminOrCoach = ['admin', 'coach'].includes(req.user.role);
+  const isSelf = existing.user_id === req.user.id;
+
+  if (!isAdminOrCoach && !isSelf) {
+    return res.status(403).json({ error: 'Access denied' });
+  }
+
+  // Players may only update their own bio fields; admin/coach can update all fields
+  const allowedFields = isAdminOrCoach
+    ? ['name', 'email', 'phone', 'date_of_birth', 'position', 'jersey_number', 'notes', 'season']
+    : ['phone', 'date_of_birth', 'position', 'jersey_number'];
+
   const updates = {};
-  fields.forEach(f => { if (req.body[f] !== undefined) updates[f] = req.body[f]; });
+  allowedFields.forEach(f => { if (req.body[f] !== undefined) updates[f] = req.body[f]; });
 
   if (Object.keys(updates).length === 0) {
     return res.status(400).json({ error: 'No fields to update' });
@@ -295,6 +306,56 @@ router.delete('/:id', authenticate, requireRole('admin'), (req, res) => {
 
   db.prepare(`DELETE FROM players WHERE id = ?`).run(id);
   res.json({ message: 'Player deleted' });
+});
+
+// ─── PUT /api/players/:id/stats ───────────────────────────────────────────────
+// Upsert season stats for a player. Coach/admin only.
+router.put('/:id/stats', authenticate, requireRole('admin', 'coach'), [
+  body('season').optional().trim(),
+  body('matches_played').optional().isInt({ min: 0 }),
+  body('sets_played').optional().isInt({ min: 0 }),
+  body('points').optional().isInt({ min: 0 }),
+  body('kills').optional().isInt({ min: 0 }),
+  body('aces').optional().isInt({ min: 0 }),
+  body('blocks').optional().isInt({ min: 0 }),
+  body('digs').optional().isInt({ min: 0 }),
+  body('errors').optional().isInt({ min: 0 }),
+], (req, res) => {
+  if (validationErrors(req, res)) return;
+
+  const playerId = Number(req.params.id);
+  const player = db.prepare(`SELECT id FROM players WHERE id = ?`).get(playerId);
+  if (!player) return res.status(404).json({ error: 'Player not found' });
+
+  const season = req.body.season || '2024-2025';
+  const fields = ['matches_played', 'sets_played', 'points', 'kills', 'aces', 'blocks', 'digs', 'errors'];
+
+  const existing = db.prepare(
+    `SELECT * FROM player_stats WHERE player_id = ? AND season = ?`
+  ).get(playerId, season);
+
+  if (existing) {
+    const updates = {};
+    fields.forEach(f => { if (req.body[f] !== undefined) updates[f] = Number(req.body[f]); });
+    if (Object.keys(updates).length > 0) {
+      const setClauses = Object.keys(updates).map(f => `${f} = ?`).join(', ');
+      db.prepare(`UPDATE player_stats SET ${setClauses} WHERE player_id = ? AND season = ?`)
+        .run(...Object.values(updates), playerId, season);
+    }
+  } else {
+    const vals = {};
+    fields.forEach(f => { vals[f] = req.body[f] !== undefined ? Number(req.body[f]) : 0; });
+    db.prepare(`
+      INSERT INTO player_stats (player_id, season, matches_played, sets_played, points, kills, aces, blocks, digs, errors)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `).run(playerId, season, vals.matches_played, vals.sets_played, vals.points,
+           vals.kills, vals.aces, vals.blocks, vals.digs, vals.errors);
+  }
+
+  const updated = db.prepare(
+    `SELECT * FROM player_stats WHERE player_id = ? AND season = ?`
+  ).get(playerId, season);
+  res.json(updated);
 });
 
 module.exports = router;
