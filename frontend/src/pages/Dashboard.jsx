@@ -549,6 +549,8 @@ function StaffDashboard({ user, isAdmin, isCoach }) {
   const [playerStats,  setPlayerStats]  = useState([])
   const [teamStandings, setTeamStandings] = useState([])
   const [statsTab,     setStatsTab]     = useState('scorers')
+  const [smtpOk,       setSmtpOk]       = useState(true)
+  const [smtpDismissed, setSmtpDismissed] = useState(false)
   const toast = useToast()
 
   async function activateStaff(staffUser) {
@@ -572,6 +574,7 @@ function StaffDashboard({ user, isAdmin, isCoach }) {
 
     if (isAdmin) {
       all.push(
+        api.get('/auth/smtp-status').then(({ data }) => setSmtpOk(data.configured)).catch(() => {}),
         api.get('/users?is_active=false&limit=10').then(({ data }) => {
           // filter to only coach / assistant_coach roles
           setPendingStaff((data.users || []).filter(u => u.role === 'coach' || u.role === 'assistant_coach'))
@@ -608,6 +611,25 @@ function StaffDashboard({ user, isAdmin, isCoach }) {
 
   return (
     <div>
+      {isAdmin && !smtpOk && !smtpDismissed && (
+        <div style={{
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          padding: '12px 18px', background: 'rgba(245,158,11,.1)',
+          border: '1px solid rgba(245,158,11,.35)', borderRadius: 12, marginBottom: 20,
+          fontSize: 13, color: 'var(--text)',
+        }}>
+          <span>
+            <strong style={{ color: '#f59e0b' }}>⚠️ Email disabled.</strong>{' '}
+            Password reset emails won't be sent. Configure{' '}
+            <code style={{ fontSize: 12, background: 'rgba(0,0,0,.2)', padding: '1px 5px', borderRadius: 4 }}>SMTP_HOST</code>,{' '}
+            <code style={{ fontSize: 12, background: 'rgba(0,0,0,.2)', padding: '1px 5px', borderRadius: 4 }}>SMTP_USER</code>,{' '}
+            <code style={{ fontSize: 12, background: 'rgba(0,0,0,.2)', padding: '1px 5px', borderRadius: 4 }}>SMTP_PASS</code>{' '}
+            to enable it.
+          </span>
+          <button onClick={() => setSmtpDismissed(true)}
+            style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 16, color: 'var(--text-muted)', padding: '0 4px' }}>✕</button>
+        </div>
+      )}
       <div className="page-header">
         <div>
           <div className="page-title">{isAdmin ? 'Admin Dashboard' : 'Coach Dashboard'}</div>

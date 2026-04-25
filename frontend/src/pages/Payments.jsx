@@ -419,53 +419,68 @@ export default function Payments() {
         ) : payments.length === 0 ? (
           <div className="empty-state"><div className="empty-icon">$</div><p>No payments found</p></div>
         ) : (
-          <div className="table-wrap">
-            <table className="data-table">
-              <thead>
-                <tr><th>{isAdmin ? 'Player' : 'Member'}</th><th>Description</th><th>Amount</th><th>Due Date</th><th>Status</th>{isAdmin && <th>Actions</th>}</tr>
-              </thead>
-              <tbody>
-                {payments.map(p => (
-                  <tr key={p.id}>
-                    <td>
-                      <div className="cell-name">
-                        <div className="avatar">{(p.player_name || '?').charAt(0)}</div>
-                        <div>
-                          <div style={{ fontWeight: 600 }}>{p.player_name}</div>
-                          <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>{p.team_name || 'No team'}</div>
-                        </div>
-                      </div>
-                    </td>
-                    <td>
-                      <div style={{ fontSize: 13 }}>{p.description || '-'}</div>
-                      {p.plan_name && <div style={{ fontSize: 11, color: 'var(--purple-light)' }}>Plan: {p.plan_name}</div>}
-                      {p.installment_number && <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>Installment {p.installment_number}</div>}
-                    </td>
-                    <td style={{ fontWeight: 700, color: p.status === 'paid' ? 'var(--green)' : p.overdue ? 'var(--pink)' : 'var(--text)' }}>
-                      ${Number(p.amount).toLocaleString()}
-                    </td>
-                    <td style={{ fontSize: 12 }}>
-                      {p.due_date ? new Date(p.due_date).toLocaleDateString() : '-'}
-                      {p.overdue && <div style={{ fontSize: 11, color: 'var(--pink)', fontWeight: 600 }}>OVERDUE</div>}
-                    </td>
-                    <td><span className={`badge ${STATUS_BADGE[p.status] || 'badge-dim'}`}>{p.status}</span></td>
-                    {isAdmin && (
+          <>
+            <div className="table-wrap">
+              <table className="data-table">
+                <thead>
+                  <tr><th>{isAdmin ? 'Player' : 'Member'}</th><th>Description</th><th>Amount</th><th>Due Date</th><th>Status</th>{isAdmin && <th>Actions</th>}</tr>
+                </thead>
+                <tbody>
+                  {payments.map(p => (
+                    <tr key={p.id}>
                       <td>
-                        <div style={{ display: 'flex', gap: 6 }}>
-                          {p.status !== 'paid' && p.status !== 'cancelled' && (
-                            <button className="btn btn-green btn-sm" disabled={working} onClick={() => markPaid(p.id)}>Mark Paid</button>
-                          )}
-                          {p.status !== 'paid' && (
-                            <button className="btn btn-secondary btn-sm" onClick={() => sendReminder(p.id)}>Remind</button>
-                          )}
+                        <div className="cell-name">
+                          <div className="avatar">{(p.player_name || '?').charAt(0)}</div>
+                          <div>
+                            <div style={{ fontWeight: 600 }}>{p.player_name}</div>
+                            <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>{p.team_name || 'No team'}</div>
+                          </div>
                         </div>
                       </td>
-                    )}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                      <td>
+                        <div style={{ fontSize: 13 }}>{p.description || '-'}</div>
+                        {p.plan_name && <div style={{ fontSize: 11, color: 'var(--purple-light)' }}>Plan: {p.plan_name}</div>}
+                        {p.installment_number && <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>Installment {p.installment_number}</div>}
+                      </td>
+                      <td style={{ fontWeight: 700, color: p.status === 'paid' ? 'var(--green)' : p.overdue ? 'var(--pink)' : 'var(--text)' }}>
+                        ${Number(p.amount).toLocaleString()}
+                      </td>
+                      <td style={{ fontSize: 12 }}>
+                        {p.due_date ? new Date(p.due_date).toLocaleDateString() : '-'}
+                        {p.overdue && <div style={{ fontSize: 11, color: 'var(--pink)', fontWeight: 600 }}>OVERDUE</div>}
+                      </td>
+                      <td><span className={`badge ${STATUS_BADGE[p.status] || 'badge-dim'}`}>{p.status}</span></td>
+                      {isAdmin && (
+                        <td>
+                          <div style={{ display: 'flex', gap: 6 }}>
+                            {p.status !== 'paid' && p.status !== 'cancelled' && (
+                              <button className="btn btn-green btn-sm" disabled={working} onClick={() => markPaid(p.id)}>Mark Paid</button>
+                            )}
+                            {p.status !== 'paid' && (
+                              <button className="btn btn-secondary btn-sm" onClick={() => sendReminder(p.id)}>Remind</button>
+                            )}
+                          </div>
+                        </td>
+                      )}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            {(() => {
+              const pages = Math.ceil(total / 50)
+              if (pages <= 1) return null
+              return (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, justifyContent: 'flex-end', marginTop: 16 }}>
+                  <button className="btn btn-secondary btn-sm" disabled={filters.page <= 1}
+                    onClick={() => setFilters(f => ({ ...f, page: f.page - 1 }))}>‹ Prev</button>
+                  <span style={{ fontSize: 13, color: 'var(--text-muted)' }}>Page {filters.page} of {pages}</span>
+                  <button className="btn btn-secondary btn-sm" disabled={filters.page >= pages}
+                    onClick={() => setFilters(f => ({ ...f, page: f.page + 1 }))}>Next ›</button>
+                </div>
+              )
+            })()}
+          </>
         )}
       </div>
 

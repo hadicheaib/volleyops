@@ -136,6 +136,15 @@ export default function Navbar() {
                 <div style={{ fontSize: 13, fontWeight: 600 }}>{user?.name}</div>
                 <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>{user?.email}</div>
               </div>
+              <Link to="/profile" onClick={() => setShowMenu(false)} style={{
+                display: 'block', width: '100%', padding: '10px 16px',
+                color: 'var(--text-muted)', fontWeight: 500, fontSize: 13,
+                textDecoration: 'none', borderBottom: '1px solid var(--border)',
+              }}
+              onMouseEnter={e => e.currentTarget.style.background = 'var(--surface2)'}
+              onMouseLeave={e => e.currentTarget.style.background = ''}>
+                ⚙️ My Profile
+              </Link>
               <button onClick={handleLogout} style={{
                 width: '100%', padding: '10px 16px', background: 'none',
                 border: 'none', cursor: 'pointer', color: 'var(--pink)',
