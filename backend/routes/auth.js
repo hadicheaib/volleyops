@@ -1,6 +1,7 @@
 const express  = require('express');
 const bcrypt   = require('bcryptjs');
 const jwt      = require('jsonwebtoken');
+const crypto   = require('crypto');
 const { v4: uuidv4 } = require('uuid');
 const { body, validationResult } = require('express-validator');
 
@@ -270,6 +271,99 @@ router.post('/change-password', authenticate, [
   db.prepare(`DELETE FROM refresh_tokens WHERE user_id = ?`).run(req.user.id);
 
   res.json({ message: 'Password changed. Please log in again.' });
+});
+
+// ─── POST /api/auth/forgot-password ──────────────────────────────────────────
+// Generates a single-use reset token. If SMTP is configured, emails it.
+// In non-production mode also returns the token directly for dev convenience.
+router.post('/forgot-password', [
+  body('email').isEmail().normalizeEmail(),
+], (req, res) => {
+  if (validationErrors(req, res)) return;
+
+  const { email } = req.body;
+  const user = db.prepare(`SELECT id, name FROM users WHERE email = ?`).get(email);
+
+  // Always respond the same way to prevent user enumeration
+  const safeResponse = { message: 'If an account with that email exists, a reset link has been sent.' };
+
+  if (!user) return res.json(safeResponse);
+
+  // Invalidate any previous unused tokens for this user
+  db.prepare(`DELETE FROM password_reset_tokens WHERE user_id = ? AND used = 0`).run(user.id);
+
+  const token     = crypto.randomBytes(32).toString('hex');
+  const expiresAt = new Date(Date.now() + 60 * 60 * 1000).toISOString(); // 1 hour
+
+  db.prepare(
+    `INSERT INTO password_reset_tokens (user_id, token, expires_at) VALUES (?, ?, ?)`
+  ).run(user.id, token, expiresAt);
+
+  // Attempt to send email if SMTP is configured
+  const smtpConfigured = !!(process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS);
+  if (smtpConfigured) {
+    const nodemailer = require('nodemailer');
+    const transporter = nodemailer.createTransport({
+      host: process.env.SMTP_HOST,
+      port: Number(process.env.SMTP_PORT) || 587,
+      secure: false,
+      auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS },
+    });
+    const resetUrl = `${process.env.APP_URL || 'http://localhost:3000'}/reset-password?token=${token}`;
+    transporter.sendMail({
+      from: process.env.SMTP_FROM || process.env.SMTP_USER,
+      to: email,
+      subject: 'VolleyOps — Password Reset',
+      text: `Hello ${user.name},\n\nClick the link below to reset your password (valid for 1 hour):\n${resetUrl}\n\nIf you did not request this, please ignore this email.`,
+      html: `<p>Hello ${user.name},</p><p>Click <a href="${resetUrl}">here</a> to reset your password (valid 1 hour).</p>`,
+    }).catch(err => console.error('Password reset email failed:', err));
+  }
+
+  // In non-production, also return the token so devs can test without SMTP
+  if (process.env.NODE_ENV !== 'production') {
+    return res.json({ ...safeResponse, dev_token: token });
+  }
+
+  res.json(safeResponse);
+});
+
+// ─── POST /api/auth/reset-password ────────────────────────────────────────────
+router.post('/reset-password', [
+  body('token').notEmpty(),
+  body('newPassword').isLength({ min: 8 }).withMessage('Password must be at least 8 characters'),
+], (req, res) => {
+  if (validationErrors(req, res)) return;
+
+  const { token, newPassword } = req.body;
+
+  const record = db.prepare(
+    `SELECT * FROM password_reset_tokens WHERE token = ? AND used = 0`
+  ).get(token);
+
+  if (!record) return res.status(400).json({ error: 'Invalid or expired reset token.' });
+  if (new Date(record.expires_at) < new Date()) {
+    db.prepare(`DELETE FROM password_reset_tokens WHERE id = ?`).run(record.id);
+    return res.status(400).json({ error: 'Reset token has expired. Please request a new one.' });
+  }
+
+  const newHash = bcrypt.hashSync(newPassword, 12);
+  db.prepare(`UPDATE users SET password_hash = ?, updated_at = datetime('now') WHERE id = ?`)
+    .run(newHash, record.user_id);
+
+  // Mark token used and invalidate all refresh tokens for security
+  db.prepare(`UPDATE password_reset_tokens SET used = 1 WHERE id = ?`).run(record.id);
+  db.prepare(`DELETE FROM refresh_tokens WHERE user_id = ?`).run(record.user_id);
+
+  res.json({ message: 'Password reset successfully. You can now log in.' });
+});
+
+// ─── GET /api/auth/smtp-status ────────────────────────────────────────────────
+// Admin-only: tells the frontend whether SMTP is configured.
+router.get('/smtp-status', authenticate, (req, res) => {
+  if (req.user.role !== 'admin') return res.status(403).json({ error: 'Admins only' });
+  res.json({
+    configured: !!(process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS),
+  });
 });
 
 module.exports = router;
