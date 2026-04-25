@@ -97,6 +97,12 @@ app.use('/api/tactics',       require('./routes/tactics'));
 app.use('/api/ai',            require('./routes/ai'));
 app.use('/api/matches',       require('./routes/matches'));
 app.use('/api/notes',         require('./routes/notes'));
+app.use('/api/team-requests', require('./routes/team-requests'));
+app.use('/api/tryouts',       require('./routes/tryouts'));
+app.use('/api/evaluations',   require('./routes/evaluations'));
+app.use('/api/attendance',    require('./routes/attendance'));
+app.use('/api/analytics',     require('./routes/analytics'));
+app.use('/api/calendar',      require('./routes/calendar'));
 
 // ─── HEALTH CHECK ─────────────────────────────────────────────────────────────
 app.get('/api/health', (_req, res) => res.json({ status: 'ok', ts: new Date().toISOString() }));
