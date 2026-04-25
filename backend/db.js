@@ -308,4 +308,104 @@ db.exec(`
   );
 `);
 
+// Password reset tokens (single-use, 1-hour TTL)
+db.exec(`
+  CREATE TABLE IF NOT EXISTS password_reset_tokens (
+    id         INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id    INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    token      TEXT    UNIQUE NOT NULL,
+    expires_at TEXT    NOT NULL,
+    used       INTEGER NOT NULL DEFAULT 0,
+    created_at TEXT    NOT NULL DEFAULT (datetime('now'))
+  );
+`);
+
+// ─── Tryout sessions + check-in ───────────────────────────────────────────────
+db.exec(`
+  CREATE TABLE IF NOT EXISTS tryouts (
+    id         INTEGER PRIMARY KEY AUTOINCREMENT,
+    name       TEXT    NOT NULL,
+    date       TEXT    NOT NULL,
+    location   TEXT,
+    team_id    INTEGER REFERENCES teams(id) ON DELETE SET NULL,
+    season     TEXT,
+    notes      TEXT,
+    is_open    INTEGER NOT NULL DEFAULT 1,
+    created_by INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    created_at TEXT    NOT NULL DEFAULT (datetime('now')),
+    updated_at TEXT    NOT NULL DEFAULT (datetime('now'))
+  );
+
+  CREATE TABLE IF NOT EXISTS tryout_attendees (
+    id            INTEGER PRIMARY KEY AUTOINCREMENT,
+    tryout_id     INTEGER NOT NULL REFERENCES tryouts(id) ON DELETE CASCADE,
+    player_id     INTEGER NOT NULL REFERENCES players(id) ON DELETE CASCADE,
+    status        TEXT    NOT NULL DEFAULT 'registered'
+                    CHECK(status IN ('registered','present','absent','excused')),
+    checked_in_at TEXT,
+    notes         TEXT,
+    created_at    TEXT    NOT NULL DEFAULT (datetime('now')),
+    UNIQUE(tryout_id, player_id)
+  );
+`);
+
+// ─── Player evaluations (skill scoring) ──────────────────────────────────────
+db.exec(`
+  CREATE TABLE IF NOT EXISTS player_evaluations (
+    id           INTEGER PRIMARY KEY AUTOINCREMENT,
+    tryout_id    INTEGER REFERENCES tryouts(id) ON DELETE CASCADE,
+    player_id    INTEGER NOT NULL REFERENCES players(id) ON DELETE CASCADE,
+    evaluated_by INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    season       TEXT,
+    serving      INTEGER CHECK(serving      BETWEEN 1 AND 10),
+    passing      INTEGER CHECK(passing      BETWEEN 1 AND 10),
+    setting      INTEGER CHECK(setting      BETWEEN 1 AND 10),
+    hitting      INTEGER CHECK(hitting      BETWEEN 1 AND 10),
+    blocking     INTEGER CHECK(blocking     BETWEEN 1 AND 10),
+    defense      INTEGER CHECK(defense      BETWEEN 1 AND 10),
+    athleticism  INTEGER CHECK(athleticism  BETWEEN 1 AND 10),
+    coachability INTEGER CHECK(coachability BETWEEN 1 AND 10),
+    notes        TEXT,
+    created_at   TEXT    NOT NULL DEFAULT (datetime('now')),
+    updated_at   TEXT    NOT NULL DEFAULT (datetime('now')),
+    UNIQUE(tryout_id, player_id, evaluated_by)
+  );
+`);
+
+// ─── Attendance (training sessions + per-player status) ───────────────────────
+db.exec(`
+  CREATE TABLE IF NOT EXISTS training_sessions (
+    id         INTEGER PRIMARY KEY AUTOINCREMENT,
+    team_id    INTEGER NOT NULL REFERENCES teams(id) ON DELETE CASCADE,
+    date       TEXT    NOT NULL,
+    type       TEXT    NOT NULL DEFAULT 'training'
+                 CHECK(type IN ('training','match','tournament','other')),
+    title      TEXT,
+    notes      TEXT,
+    created_by INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    created_at TEXT    NOT NULL DEFAULT (datetime('now'))
+  );
+
+  CREATE TABLE IF NOT EXISTS attendance (
+    id         INTEGER PRIMARY KEY AUTOINCREMENT,
+    session_id INTEGER NOT NULL REFERENCES training_sessions(id) ON DELETE CASCADE,
+    player_id  INTEGER NOT NULL REFERENCES players(id) ON DELETE CASCADE,
+    status     TEXT    NOT NULL DEFAULT 'present'
+                 CHECK(status IN ('present','absent','late','excused')),
+    notes      TEXT,
+    created_at TEXT    NOT NULL DEFAULT (datetime('now')),
+    UNIQUE(session_id, player_id)
+  );
+`);
+
+// ─── Calendar subscription tokens ────────────────────────────────────────────
+db.exec(`
+  CREATE TABLE IF NOT EXISTS calendar_tokens (
+    id         INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id    INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE UNIQUE,
+    token      TEXT    UNIQUE NOT NULL,
+    created_at TEXT    NOT NULL DEFAULT (datetime('now'))
+  );
+`);
+
 module.exports = db;
