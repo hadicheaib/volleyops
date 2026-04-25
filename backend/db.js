@@ -1,7 +1,10 @@
 const Database = require('better-sqlite3');
 const path = require('path');
 
-const db = new Database(path.join(__dirname, 'volleyops.db'));
+// In production on Railway, DB_PATH points to a persistent Volume mount (e.g. /data/volleyops.db).
+// Locally it falls back to the file next to this script.
+const dbPath = process.env.DB_PATH || path.join(__dirname, 'volleyops.db');
+const db = new Database(dbPath);
 
 // Performance + integrity
 db.pragma('journal_mode = WAL');
