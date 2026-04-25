@@ -3,6 +3,153 @@ import api from '../api/client'
 import { useAuth } from '../context/AuthContext'
 import { useToast } from '../context/ToastContext'
 
+// ─── Calendar Sync Modal ───────────────────────────────────────────────────────
+function CalendarSyncModal({ onClose }) {
+  const toast = useToast()
+  const [tokenData, setTokenData] = useState(null)
+  const [loading, setLoading] = useState(true)
+  const [copied, setCopied] = useState(false)
+
+  useEffect(() => {
+    api.get('/calendar/token')
+      .then(r => setTokenData(r.data))
+      .catch(() => toast('Failed to load calendar token', 'error'))
+      .finally(() => setLoading(false))
+  }, [])
+
+  function copyUrl() {
+    if (tokenData?.feed_url) {
+      navigator.clipboard.writeText(tokenData.feed_url).then(() => {
+        setCopied(true)
+        setTimeout(() => setCopied(false), 2000)
+      })
+    }
+  }
+
+  function downloadIcs() {
+    if (tokenData?.feed_url) {
+      const a = document.createElement('a')
+      a.href = tokenData.feed_url
+      a.download = 'volleyops.ics'
+      a.click()
+    }
+  }
+
+  return (
+    <div className="modal-backdrop" onClick={onClose}>
+      <div className="modal" style={{ maxWidth: 460 }} onClick={e => e.stopPropagation()}>
+        <div className="modal-header">
+          <span className="modal-title">📅 Calendar Sync</span>
+          <button className="modal-close" onClick={onClose}>✕</button>
+        </div>
+        {loading ? (
+          <div style={{ textAlign: 'center', padding: 32, color: 'var(--text-muted)' }}>Generating your calendar link…</div>
+        ) : tokenData ? (
+          <div>
+            <p style={{ fontSize: 13, color: 'var(--text-muted)', marginBottom: 20 }}>
+              Sync your matches and training sessions with any calendar app. Your personal calendar link is private — anyone with the URL can view your schedule.
+            </p>
+            <div style={{ marginBottom: 16 }}>
+              <label style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-dim)', textTransform: 'uppercase', letterSpacing: '0.07em', display: 'block', marginBottom: 6 }}>Calendar Feed URL</label>
+              <div style={{ display: 'flex', gap: 8 }}>
+                <input readOnly value={tokenData.feed_url} className="input" style={{ fontSize: 12, flex: 1 }} onClick={e => e.target.select()} />
+                <button className="btn btn-secondary" onClick={copyUrl} style={{ whiteSpace: 'nowrap' }}>
+                  {copied ? '✓ Copied' : 'Copy'}
+                </button>
+              </div>
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              <a href={tokenData.webcal_url} style={{ display: 'block' }}>
+                <button className="btn btn-primary" style={{ width: '100%', justifyContent: 'center' }}>
+                  🗓 Subscribe in Calendar App (webcal)
+                </button>
+              </a>
+              <button className="btn btn-secondary" style={{ width: '100%', justifyContent: 'center' }} onClick={downloadIcs}>
+                ⬇️ Download .ics File
+              </button>
+              <a href={`https://calendar.google.com/calendar/r?cid=${encodeURIComponent(tokenData.webcal_url)}`} target="_blank" rel="noreferrer" style={{ display: 'block' }}>
+                <button className="btn btn-secondary" style={{ width: '100%', justifyContent: 'center' }}>
+                  <img src="https://www.google.com/favicon.ico" alt="" style={{ width: 14, height: 14, marginRight: 6 }} />
+                  Add to Google Calendar
+                </button>
+              </a>
+            </div>
+            <p style={{ fontSize: 11, color: 'var(--text-dim)', marginTop: 16 }}>
+              ℹ️ This URL is unique to your account. Keep it private. Includes all matches and practices for your teams.
+            </p>
+          </div>
+        ) : (
+          <div style={{ textAlign: 'center', padding: 32, color: 'var(--pink)' }}>Failed to load calendar data.</div>
+        )}
+      </div>
+    </div>
+  )
+}
+
+// ─── Create Practice Modal ─────────────────────────────────────────────────────
+function CreatePracticeModal({ teams, onClose, onCreated }) {
+  const toast = useToast()
+  const [form, setForm] = useState({
+    team_id: teams[0]?.id ?? '',
+    date: '',
+    type: 'training',
+    title: '',
+    notes: '',
+  })
+  const [loading, setLoading] = useState(false)
+  const set = f => e => setForm(v => ({ ...v, [f]: e.target.value }))
+
+  async function submit(e) {
+    e.preventDefault()
+    setLoading(true)
+    try {
+      const { data } = await api.post('/attendance/sessions', {
+        ...form,
+        team_id: Number(form.team_id),
+      })
+      toast('Practice session scheduled', 'success')
+      onCreated(data.session)
+    } catch (err) { toast(err.response?.data?.error || 'Failed', 'error') }
+    finally { setLoading(false) }
+  }
+
+  return (
+    <div className="modal-backdrop" onClick={onClose}>
+      <div className="modal" onClick={e => e.stopPropagation()}>
+        <div className="modal-header">
+          <span className="modal-title">Schedule Practice</span>
+          <button className="modal-close" onClick={onClose}>✕</button>
+        </div>
+        <form onSubmit={submit}>
+          <div className="form-row"><label>Team *</label>
+            <select className="select" required value={form.team_id} onChange={set('team_id')}>
+              {teams.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+            </select></div>
+          <div className="form-grid">
+            <div className="form-row"><label>Date &amp; Time *</label>
+              <input className="input" type="datetime-local" required value={form.date} onChange={set('date')} /></div>
+            <div className="form-row"><label>Type</label>
+              <select className="select" value={form.type} onChange={set('type')}>
+                <option value="training">Training</option>
+                <option value="match">Match</option>
+                <option value="tournament">Tournament</option>
+                <option value="other">Other</option>
+              </select></div>
+          </div>
+          <div className="form-row"><label>Title</label>
+            <input className="input" placeholder="e.g. Defensive Drills" value={form.title} onChange={set('title')} /></div>
+          <div className="form-row"><label>Notes</label>
+            <textarea className="textarea" rows={2} value={form.notes} onChange={set('notes')} /></div>
+          <div className="form-actions">
+            <button type="button" className="btn btn-secondary" onClick={onClose}>Cancel</button>
+            <button type="submit" className="btn btn-primary" disabled={loading}>{loading ? 'Saving…' : 'Schedule'}</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  )
+}
+
 const POS_LABELS = {
   setter: 'Setter', libero: 'Libero', outside_hitter: 'OH',
   opposite: 'OPP', middle_blocker: 'MB', defensive_specialist: 'DS',
@@ -334,9 +481,15 @@ export default function Schedule() {
   const [teams,    setTeams]    = useState([])
   const [loading,  setLoading]  = useState(true)
   const [selected, setSelected] = useState(null)
-  const [tab,      setTab]      = useState('upcoming')   // upcoming | past | all
+  const [tab,      setTab]      = useState('upcoming')   // upcoming | past | all | practices
   const [showCreate, setShowCreate] = useState(false)
   const [showResult, setShowResult] = useState(null)
+  const [showCalSync, setShowCalSync] = useState(false)
+
+  // ── practices state ───────────────────────────────────────────────────────
+  const [practices,     setPractices]     = useState([])
+  const [practLoading,  setPractLoading]  = useState(false)
+  const [showCreatePractice, setShowCreatePractice] = useState(false)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -344,6 +497,7 @@ export default function Schedule() {
       const params = {}
       if (tab === 'upcoming') params.upcoming = 'true'
       if (tab === 'past')     params.status   = 'completed'
+      if (tab === 'practices') { setLoading(false); return }
       const { data } = await api.get('/matches', { params })
       setMatches(data.matches || [])
       if (!selected && data.matches?.length) setSelected(data.matches[0])
@@ -351,7 +505,19 @@ export default function Schedule() {
     finally { setLoading(false) }
   }, [tab])
 
-  useEffect(() => { load() }, [load])
+  const loadPractices = useCallback(async () => {
+    setPractLoading(true)
+    try {
+      const { data } = await api.get('/attendance/sessions')
+      setPractices(data.sessions || [])
+    } catch {}
+    finally { setPractLoading(false) }
+  }, [])
+
+  useEffect(() => {
+    if (tab === 'practices') loadPractices()
+    else load()
+  }, [tab, load, loadPractices])
 
   useEffect(() => {
     if (canManageFixtures) {
@@ -365,27 +531,97 @@ export default function Schedule() {
     return true
   })
 
+  const SESSION_TYPE_STYLE = {
+    training:    { badge: 'badge-cyan',   label: '🏋️ Training',   color: 'var(--cyan)' },
+    match:       { badge: 'badge-purple', label: '🏐 Match',       color: 'var(--purple-light)' },
+    tournament:  { badge: 'badge-pink',   label: '🏆 Tournament',  color: 'var(--pink)' },
+    other:       { badge: 'badge-yellow', label: '📋 Other',       color: 'var(--yellow)' },
+  }
+
   return (
     <div>
       <div className="page-header">
         <div>
-          <div className="page-title">Match Schedule</div>
-          <div className="page-subtitle">{matches.length} match{matches.length !== 1 ? 'es' : ''} · manage fixtures and team lineups</div>
+          <div className="page-title">Schedule</div>
+          <div className="page-subtitle">
+            {tab === 'practices'
+              ? `${practices.length} practice session${practices.length !== 1 ? 's' : ''}`
+              : `${matches.length} match${matches.length !== 1 ? 'es' : ''} · manage fixtures and team lineups`}
+          </div>
         </div>
-        {canManageFixtures && (
-          <button className="btn btn-primary" onClick={() => setShowCreate(true)}>+ Schedule Match</button>
-        )}
+        <div style={{ display: 'flex', gap: 10 }}>
+          <button className="btn btn-secondary" onClick={() => setShowCalSync(true)}>📅 Sync Calendar</button>
+          {canManageFixtures && tab !== 'practices' && (
+            <button className="btn btn-primary" onClick={() => setShowCreate(true)}>+ Schedule Match</button>
+          )}
+          {canManageFixtures && tab === 'practices' && (
+            <button className="btn btn-primary" onClick={() => setShowCreatePractice(true)}>+ Schedule Practice</button>
+          )}
+        </div>
       </div>
 
-      <div style={{ display: 'flex', gap: 20, height: 'calc(100vh - 180px)', minHeight: 500 }}>
+      {/* ── Practices tab ── */}
+      {tab === 'practices' ? (
+        <div>
+          {/* Tab bar */}
+          <div style={{ display: 'flex', gap: 4, borderBottom: '1px solid var(--border)', marginBottom: 20 }}>
+            {[['upcoming','Upcoming'],['past','Past'],['all','All Matches'],['practices','Practices']].map(([key, label]) => (
+              <button key={key} onClick={() => { setTab(key); setSelected(null) }}
+                style={{ padding: '10px 16px', fontSize: 13, fontWeight: 700, background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'DM Sans, sans-serif',
+                  color: tab === key ? 'var(--cyan)' : 'var(--text-muted)',
+                  borderBottom: tab === key ? '2px solid var(--cyan)' : '2px solid transparent' }}>
+                {label}
+              </button>
+            ))}
+          </div>
+
+          {practLoading ? (
+            <div className="loading-center"><div className="spinner" /></div>
+          ) : !practices.length ? (
+            <div className="empty-state">
+              <div className="empty-icon">🏋️</div>
+              <p>No practice sessions scheduled yet</p>
+              {canManageFixtures && <button className="btn btn-primary" onClick={() => setShowCreatePractice(true)}>Schedule First Practice</button>}
+            </div>
+          ) : (
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 14 }}>
+              {practices.map(s => {
+                const st = SESSION_TYPE_STYLE[s.type] || SESSION_TYPE_STYLE.other
+                const d = s.date ? new Date(s.date) : null
+                return (
+                  <div key={s.id} className="card" style={{ padding: 18 }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 10 }}>
+                      <div style={{ fontWeight: 700, fontSize: 14 }}>{s.title || 'Practice Session'}</div>
+                      <span className={`badge ${st.badge}`}>{st.label}</span>
+                    </div>
+                    <div style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 6 }}>
+                      {s.team_name || '—'}
+                    </div>
+                    <div style={{ fontSize: 12, color: 'var(--text-dim)', marginBottom: s.notes ? 8 : 0 }}>
+                      📅 {d ? d.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' }) : '—'}
+                      {d && <span style={{ marginLeft: 8 }}>{d.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })}</span>}
+                    </div>
+                    {s.notes && <div style={{ fontSize: 12, color: 'var(--text-muted)', fontStyle: 'italic', marginTop: 4 }}>{s.notes}</div>}
+                    <div style={{ marginTop: 10, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <span style={{ fontSize: 11, color: 'var(--text-dim)' }}>{s.attendance_count ?? 0} marked</span>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          )}
+        </div>
+      ) : (
+
+      <div style={{ display: 'flex', gap: 20, height: 'calc(100vh - 200px)', minHeight: 500 }}>
 
         {/* ── Left: match list ── */}
         <div style={{ width: 320, flexShrink: 0, display: 'flex', flexDirection: 'column', gap: 0, background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 14, overflow: 'hidden' }}>
           {/* Tabs */}
           <div style={{ display: 'flex', borderBottom: '1px solid var(--border)', padding: '0 4px' }}>
-            {[['upcoming','Upcoming'],['past','Past'],['all','All']].map(([key, label]) => (
+            {[['upcoming','Upcoming'],['past','Past'],['all','All'],['practices','Practices']].map(([key, label]) => (
               <button key={key} onClick={() => { setTab(key); setSelected(null) }}
-                style={{ flex: 1, padding: '12px 4px', fontSize: 12, fontWeight: 700, background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'DM Sans, sans-serif',
+                style={{ flex: 1, padding: '12px 4px', fontSize: 11, fontWeight: 700, background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'DM Sans, sans-serif',
                   color: tab === key ? 'var(--purple-light)' : 'var(--text-muted)',
                   borderBottom: tab === key ? '2px solid var(--purple)' : '2px solid transparent' }}>
                 {label}
@@ -501,6 +737,8 @@ export default function Schedule() {
         </div>
       </div>
 
+      )} {/* end tab !== 'practices' */}
+
       {showCreate && (
         <CreateMatchModal
           teams={teams}
@@ -514,6 +752,18 @@ export default function Schedule() {
           match={showResult}
           onClose={() => setShowResult(null)}
           onSaved={() => { setShowResult(null); load() }}
+        />
+      )}
+
+      {showCalSync && (
+        <CalendarSyncModal onClose={() => setShowCalSync(false)} />
+      )}
+
+      {showCreatePractice && (
+        <CreatePracticeModal
+          teams={teams}
+          onClose={() => setShowCreatePractice(false)}
+          onCreated={(s) => { setPractices(prev => [s, ...prev]); setShowCreatePractice(false) }}
         />
       )}
     </div>

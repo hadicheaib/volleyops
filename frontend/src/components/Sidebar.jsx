@@ -6,16 +6,26 @@ const NAV = [
     { to: '/dashboard', icon: '🏠', label: 'Dashboard' },
     { to: '/schedule',  icon: '📅', label: 'Schedule' },
     { to: '/standings', icon: '📊', label: 'Standings' },
+    { to: '/analytics', icon: '📈', label: 'Analytics', roles: ['admin','coach','assistant_coach'] },
   ]},
   { section: 'Management', items: [
     { to: '/users',    icon: '👤', label: 'Users',          roles: ['admin'] },
-    { to: '/players',  icon: '📝', label: 'Registration',  roles: ['admin','coach'] },
-    { to: '/teams',    icon: '👥', label: 'Team Rosters',  roles: ['admin','coach','assistant_coach'] },
-    { to: '/payments', icon: '💳', label: 'Payments',      roles: ['admin','coach','assistant_coach','player'] },
+    { to: '/players',  icon: '📝', label: 'Registration',   roles: ['admin','coach'] },
+    { to: '/teams',    icon: '👥', label: 'Team Rosters',   roles: ['admin','coach','assistant_coach'] },
+    { to: '/payments', icon: '💳', label: 'Payments',       roles: ['admin','coach','assistant_coach','player'] },
   ]},
   { section: 'Tools', items: [
-    { to: '/tactics',  icon: '🎯', label: 'Tactics Board', roles: ['coach','assistant_coach'] },
+    { to: '/tactics',  icon: '🎯', label: 'Tactics Board' },
     { to: '/messages', icon: '💬', label: 'Communication' },
+  ]},
+  { section: 'Tryouts & Scouting', items: [
+    { to: '/tryouts',      icon: '✅', label: 'Check-In',      roles: ['admin','coach','assistant_coach'] },
+    { to: '/evaluations',  icon: '📊', label: 'Evaluations',   roles: ['admin','coach','assistant_coach'] },
+    { to: '/ai-placement', icon: '🤖', label: 'AI Placement',  roles: ['admin','coach'] },
+    { to: '/attendance',   icon: '📅', label: 'Attendance',    roles: ['admin','coach','assistant_coach'] },
+  ]},
+  { section: 'Account', items: [
+    { to: '/profile',  icon: '⚙️', label: 'My Profile' },
   ]},
 ]
 
