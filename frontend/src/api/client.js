@@ -1,6 +1,10 @@
 import axios from 'axios'
 
-const api = axios.create({ baseURL: '/api' })
+// In production (Railway), VITE_API_URL points to the backend service URL.
+// In local Docker/dev, requests go through the nginx/vite proxy at /api.
+const baseURL = import.meta.env.VITE_API_URL ? `${import.meta.env.VITE_API_URL}/api` : '/api'
+
+const api = axios.create({ baseURL })
 
 // Attach access token to every request
 api.interceptors.request.use((config) => {
