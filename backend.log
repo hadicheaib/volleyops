@@ -1,6 +1,0 @@
-VolleyOps API running on port 3001
-[0mGET / [33m404[0m 2.972 ms - 21[0m
-[0mGET /api/teams/public [32m200[0m 0.933 ms - 461[0m
-[0mGET /api/teams/public [36m304[0m 0.690 ms - -[0m
-[0mGET /api/teams/public [36m304[0m 0.358 ms - -[0m
-[0mGET /api/teams/public [36m304[0m 0.477 ms - -[0m
